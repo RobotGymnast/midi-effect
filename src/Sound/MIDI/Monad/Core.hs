@@ -21,32 +21,30 @@ import qualified Sound.ALSA.Sequencer as S
 -- | Context for MIDI I/O actions
 type MIDIContext = (S.T S.DuplexMode, Q.T, Connect.T)
 
-newtype MIDIMonad a = MIDIMonad { raw :: MIDIContext -> IO a }
-
 -- | MIDI I/O type
-type MIDI = MIDIMonad ()
+newtype MIDI a = MIDI { raw :: MIDIContext -> IO a }
 
-instance Monad MIDIMonad where
-    return = MIDIMonad . return . return
-    (MIDIMonad m) >>= f = MIDIMonad $ \h -> m h >>= ($ h) . raw . f
+instance Monad MIDI where
+    return = MIDI . return . return
+    (MIDI m) >>= f = MIDI $ \h -> m h >>= ($ h) . raw . f
 
-instance MonadPlus MIDIMonad where
+instance MonadPlus MIDI where
     mzero = empty
     mplus = (<|>)
 
-instance Alternative MIDIMonad where
-    empty = MIDIMonad $ \_-> empty
-    MIDIMonad f <|> MIDIMonad g = MIDIMonad $ liftA2 (<|>) f g
+instance Alternative MIDI where
+    empty = MIDI $ \_-> empty
+    MIDI f <|> MIDI g = MIDI $ liftA2 (<|>) f g
 
-instance Applicative MIDIMonad where
+instance Applicative MIDI where
     pure = return
     (<*>) = ap
 
-instance Functor MIDIMonad where fmap = liftA
+instance Functor MIDI where fmap = liftA
 
 -- | Perform MIDI I/O
 runMIDI :: Text     -- ^ Client name
-        -> MIDI     -- ^ MIDI action
+        -> MIDI ()  -- ^ MIDI action
         -> IO ()
 runMIDI name m = io $ S.withDefault S.Block $ \h -> do
         C.setName h name
@@ -59,5 +57,5 @@ runMIDI name m = io $ S.withDefault S.Block $ \h -> do
                     runIO $ raw m (h, q, conn)
 
 -- | Lift IO to MIDI I/O
-ioMIDI :: (MIDIContext -> IO ()) -> MIDI
-ioMIDI = MIDIMonad
+ioMIDI :: (MIDIContext -> IO a) -> MIDI a
+ioMIDI = MIDI
