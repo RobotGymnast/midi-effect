@@ -8,7 +8,7 @@
 
 # Installing
 
-If you have cabal and llvm installed, you should be able to install Playmidi by calling
+If you have cabal and llvm installed, you should be able to install the library by calling
 
     scripts/install.sh
 
