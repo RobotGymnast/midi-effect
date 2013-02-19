@@ -19,7 +19,7 @@ import qualified Sound.ALSA.Sequencer.Queue as Q
 import qualified Sound.ALSA.Sequencer as S
 
 -- | Context for MIDI I/O actions
-type MIDIContext = (S.T S.DuplexMode, Q.T, Connect.T)
+type MIDIContext = (S.T S.DuplexMode, Q.T, Connect.T, Connect.T)
 
 -- | MIDI I/O type
 newtype MIDI a = MIDI { raw :: MIDIContext -> IO a }
@@ -48,13 +48,14 @@ runMIDI :: Text     -- ^ Client name
         -> IO ()
 runMIDI name m = io $ S.withDefault S.Block $ \h -> do
         C.setName h name
-        P.withSimple h "out"
+        P.withSimple h "io"
             (P.caps [P.capRead, P.capSubsRead, P.capWrite])
             (P.types [P.typeMidiGeneric, P.typeApplication])
             $ \p -> Q.with h $ \q -> do
-                    conn <- Connect.createTo h p =<< Addr.parse h "128:0"
+                    outConn <- Connect.createTo h p =<< Addr.parse h "128:0"
+                    inConn <- Connect.createFrom h p =<< Addr.parse h "64:0"
                     Q.control h q E.QueueStart Nothing
-                    runIO $ raw m (h, q, conn)
+                    runIO $ raw m (h, q, outConn, inConn)
 
 -- | Lift IO to MIDI I/O
 ioMIDI :: (MIDIContext -> IO a) -> MIDI a
