@@ -9,6 +9,7 @@ data Note = Note
         , instr :: Word8
         , vcty :: Word8
         }
+    deriving (Eq, Show)
 
 -- | 1/96th of a beat
 type Tick = Word32
