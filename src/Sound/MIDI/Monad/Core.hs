@@ -44,16 +44,18 @@ instance Functor MIDI where fmap = liftA
 
 -- | Perform MIDI I/O
 runMIDI :: Text     -- ^ Client name
+        -> Text     -- ^ Output destination
+        -> Text     -- ^ Input destination
         -> MIDI ()  -- ^ MIDI action
         -> IO ()
-runMIDI name m = io $ S.withDefault S.Block $ \h -> do
+runMIDI name output input m = io $ S.withDefault S.Nonblock $ \h -> do
         C.setName h name
         P.withSimple h "io"
             (P.caps [P.capRead, P.capSubsRead, P.capWrite])
             (P.types [P.typeMidiGeneric, P.typeApplication])
             $ \p -> Q.with h $ \q -> do
-                    outConn <- Connect.createTo h p =<< Addr.parse h "128:0"
-                    inConn <- Connect.createFrom h p =<< Addr.parse h "64:0"
+                    outConn <- Connect.createTo h p =<< Addr.parse h output
+                    inConn <- Connect.createFrom h p =<< Addr.parse h input
                     Q.control h q E.QueueStart Nothing
                     runIO $ raw m (h, q, outConn, inConn)
 
