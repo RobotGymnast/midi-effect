@@ -21,6 +21,11 @@ data Note = Note
         }
     deriving (Eq, Show)
 
+instance Ord Note where
+    compare n1 n2 = (compare `on` pitch) n1 n2
+                  <> (compare `on` vcty) n1 n2
+                  <> (compare `on` instr) n1 n2
+
 $(memberTransformers ''Note)
 
 -- | 1/96th of a beat
