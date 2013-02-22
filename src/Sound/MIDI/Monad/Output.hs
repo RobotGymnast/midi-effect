@@ -38,7 +38,7 @@ noteEvent :: E.NoteEv -> Word32 -> Note -> MIDI ()
 noteEvent e start note = ioMIDI $ \(h, q, conn, _) -> let
             event = (E.forConnection conn $ E.NoteEv e $ alsaNote note)
                 { E.queue = q
-                , E.time = T.consAbs $ T.Tick start
+                , E.time = T.consRel $ T.Tick start
                 }
         in io $ void $ E.output h event
 
