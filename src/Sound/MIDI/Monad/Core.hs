@@ -3,10 +3,13 @@
            #-}
 module Sound.MIDI.Monad.Core ( MIDI
                              , MIDIContext (..)
+                             , Instrument
                              , seqT'
                              , qT'
                              , connOut'
                              , connIn'
+                             , instrs'
+                             , channels'
                              , ioMIDI
                              , runMIDI
                              ) where
@@ -14,7 +17,11 @@ module Sound.MIDI.Monad.Core ( MIDI
 import Prelewd
 
 import IO
+import STM
 
+import Data.Word
+import Storage.Map
+import Storage.Refcount
 import Template.MemberTransformer
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
@@ -25,12 +32,16 @@ import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Queue as Q
 import qualified Sound.ALSA.Sequencer as S
 
+type Instrument = Word8
+
 -- | Context for MIDI I/O actions
 data MIDIContext = MIDIContext
             { seqT      :: S.T S.DuplexMode
             , qT        :: Q.T
             , connOut   :: Connect.T
             , connIn    :: Connect.T
+            , instrs    :: TVar (Map Instrument Word8)
+            , channels  :: TVar (Refcount Word8)
             }
 
 $(memberTransformers ''MIDIContext)
@@ -71,11 +82,15 @@ runMIDI name output input m = io $ S.withDefault S.Nonblock $ \h -> do
                     outConn <- Connect.createTo h p =<< Addr.parse h output
                     inConn <- Connect.createFrom h p =<< Addr.parse h input
                     Q.control h q E.QueueStart Nothing
+                    instruments <- newTVarIO mempty
+                    chnls <- newTVarIO mempty
                     runIO $ raw m $ MIDIContext
                             { seqT      = h
                             , qT        = q
                             , connOut   = outConn
                             , connIn    = inConn
+                            , instrs    = instruments
+                            , channels  = chnls
                             }
 
 -- | Lift IO to MIDI I/O

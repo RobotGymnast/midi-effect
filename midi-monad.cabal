@@ -1,5 +1,5 @@
 Name:                midi-monad
-Version:             0.1
+Version:             0.2
 Description:         Monadic MIDI I/O
 Category:            Music
 License:             BSD3
@@ -12,7 +12,7 @@ library
     hs-source-dirs:    src/
     ghc-options:       -Wall -Werror -threaded -rtsopts=all -fllvm
     exposed-modules:   Sound.MIDI.Monad Sound.MIDI.Monad.Core Sound.MIDI.Monad.Input Sound.MIDI.Monad.Output
-                       Sound.MIDI.Monad.Types
+                       Sound.MIDI.Monad.Types Storage.Refcount
 
     build-depends: 
                     alsa-seq,
