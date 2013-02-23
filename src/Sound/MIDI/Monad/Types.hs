@@ -15,7 +15,7 @@ import Template.MemberTransformer
 import Text.Show
 
 data Note = Note
-        { pitch :: Word8    -- ^ In semitones. 48 is middle C
+        { pitch :: Word8    -- ^ In semitones. 60 is middle C
         , instr :: Word8
         , vcty :: Word8
         }
