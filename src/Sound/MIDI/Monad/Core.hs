@@ -1,7 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude
+           , TemplateHaskell
            #-}
 module Sound.MIDI.Monad.Core ( MIDI
-                             , MIDIContext
+                             , MIDIContext (..)
+                             , seqT'
+                             , qT'
+                             , connOut'
+                             , connIn'
                              , ioMIDI
                              , runMIDI
                              ) where
@@ -9,6 +14,8 @@ module Sound.MIDI.Monad.Core ( MIDI
 import Prelewd
 
 import IO
+
+import Template.MemberTransformer
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Client as C
@@ -19,7 +26,14 @@ import qualified Sound.ALSA.Sequencer.Queue as Q
 import qualified Sound.ALSA.Sequencer as S
 
 -- | Context for MIDI I/O actions
-type MIDIContext = (S.T S.DuplexMode, Q.T, Connect.T, Connect.T)
+data MIDIContext = MIDIContext
+            { seqT      :: S.T S.DuplexMode
+            , qT        :: Q.T
+            , connOut   :: Connect.T
+            , connIn    :: Connect.T
+            }
+
+$(memberTransformers ''MIDIContext)
 
 -- | MIDI I/O type
 newtype MIDI a = MIDI { raw :: MIDIContext -> IO a }
@@ -57,7 +71,12 @@ runMIDI name output input m = io $ S.withDefault S.Nonblock $ \h -> do
                     outConn <- Connect.createTo h p =<< Addr.parse h output
                     inConn <- Connect.createFrom h p =<< Addr.parse h input
                     Q.control h q E.QueueStart Nothing
-                    runIO $ raw m (h, q, outConn, inConn)
+                    runIO $ raw m $ MIDIContext
+                            { seqT      = h
+                            , qT        = q
+                            , connOut   = outConn
+                            , connIn    = inConn
+                            }
 
 -- | Lift IO to MIDI I/O
 ioMIDI :: (MIDIContext -> IO a) -> MIDI a

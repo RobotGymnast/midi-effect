@@ -23,10 +23,10 @@ import Sound.MIDI.Monad.Types as Types
 
 tempo :: Word32     -- ^ Microseconds per beat
       -> MIDI ()
-tempo t = ioMIDI $ \(h, q, _, _) -> io $ Q.control h q (E.QueueTempo $ E.Tempo $ fromIntegral t) Nothing
+tempo t = ioMIDI $ \cxt -> io $ Q.control (seqT cxt) (qT cxt) (E.QueueTempo $ E.Tempo $ fromIntegral t) Nothing
 
 flush :: MIDI ()
-flush = ioMIDI $ \(h, _, _, _) -> io $ void $ E.drainOutput h
+flush = ioMIDI $ \cxt -> io $ void $ E.drainOutput $ seqT cxt
 
 -- | Convert Note to Sound.ALSA.Sequence.Event.Note
 alsaNote :: Note -> E.Note
@@ -34,13 +34,13 @@ alsaNote note = E.simpleNote (E.Channel $ instr note)
                              (E.Pitch $ pitch note)
                              (E.Velocity $ vcty note)
 
-noteEvent :: E.NoteEv -> Word32 -> Note -> MIDI ()
-noteEvent e start note = ioMIDI $ \(h, q, conn, _) -> let
-            event = (E.forConnection conn $ E.NoteEv e $ alsaNote note)
-                { E.queue = q
+noteEvent :: E.NoteEv -> Tick -> Note -> MIDI ()
+noteEvent e start note = ioMIDI $ \cxt -> let
+            event = (E.forConnection (connOut cxt) $ E.NoteEv e $ alsaNote note)
+                { E.queue = qT cxt
                 , E.time = T.consRel $ T.Tick start
                 }
-        in io $ void $ E.output h event
+        in io $ void $ E.output (seqT cxt) event
 
 startNote, stopNote :: Tick -> Note -> MIDI ()
 [startNote, stopNote] = noteEvent <$> [E.NoteOn, E.NoteOff]

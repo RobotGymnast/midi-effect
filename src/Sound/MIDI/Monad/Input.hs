@@ -15,7 +15,7 @@ import qualified Sound.ALSA.Sequencer.Event as E
 
 -- | MIDI note events; True indicates pressed.
 midiIn :: MIDI [(Bool, Note)]
-midiIn = ioMIDI $ \(h, _, _, _) -> io $ midiInIO h
+midiIn = ioMIDI $ \cxt -> io $ midiInIO $ seqT cxt
     where
         midiInIO h = do
                 n <- E.inputPending h True
