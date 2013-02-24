@@ -25,12 +25,7 @@ midiIn = ioMIDI $ \cxt -> io $ midiInIO $ seqT cxt
 
 fromEvent :: E.T -> Maybe (Bool, Note)
 fromEvent e = case E.body e of
-        E.NoteEv E.NoteOn note -> Just (True, alsaNote note)
-        E.NoteEv E.NoteOff note -> Just (False, alsaNote note)
+        E.NoteEv E.NoteOn note -> Just (True, fromALSA note)
+        E.NoteEv E.NoteOff note -> Just (False, fromALSA note)
         E.CtrlEv _ _ -> Nothing
         _ -> traceShow e undefined
-
-alsaNote :: E.Note -> Note
-alsaNote note = Note (E.unPitch $ E.noteNote note)
-                     (E.unChannel $ E.noteChannel note)
-                     (E.unVelocity $ E.noteVelocity note)

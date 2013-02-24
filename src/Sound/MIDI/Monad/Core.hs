@@ -3,7 +3,6 @@
            #-}
 module Sound.MIDI.Monad.Core ( MIDI
                              , MIDIContext (..)
-                             , Instrument
                              , seqT'
                              , qT'
                              , connOut'
@@ -19,7 +18,6 @@ import Prelewd
 import IO
 import STM
 
-import Data.Word
 import Storage.Map
 import Storage.Refcount
 import Template.MemberTransformer
@@ -32,7 +30,7 @@ import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Queue as Q
 import qualified Sound.ALSA.Sequencer as S
 
-type Instrument = Word8
+import Sound.MIDI.Monad.Types
 
 -- | Context for MIDI I/O actions
 data MIDIContext = MIDIContext
@@ -40,8 +38,8 @@ data MIDIContext = MIDIContext
             , qT        :: Q.T
             , connOut   :: Connect.T
             , connIn    :: Connect.T
-            , instrs    :: TVar (Map Instrument Word8)
-            , channels  :: TVar (Refcount Word8)
+            , instrs    :: TVar (Map Instrument E.Channel)
+            , channels  :: TVar (Refcount E.Channel)
             }
 
 $(memberTransformers ''MIDIContext)
