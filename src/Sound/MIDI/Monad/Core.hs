@@ -18,6 +18,7 @@ import Prelewd
 import IO
 import STM
 
+import Data.Word
 import Storage.Map
 import Storage.Refcount
 import Template.MemberTransformer
@@ -30,15 +31,13 @@ import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Queue as Q
 import qualified Sound.ALSA.Sequencer as S
 
-import Sound.MIDI.Monad.Types
-
 -- | Context for MIDI I/O actions
 data MIDIContext = MIDIContext
             { seqT      :: S.T S.DuplexMode
             , qT        :: Q.T
             , connOut   :: Connect.T
             , connIn    :: Connect.T
-            , instrs    :: TVar (Map Instrument E.Channel)
+            , instrs    :: TVar (Map Word8 E.Channel)
             , channels  :: TVar (Refcount E.Channel)
             }
 

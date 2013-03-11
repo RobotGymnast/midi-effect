@@ -29,4 +29,5 @@ fromEvent e = case E.body e of
                                   in Just (vcty alsa > 0, alsa)
         E.NoteEv E.NoteOff _ -> error "ALSA input NoteOff event"
         E.CtrlEv _ _ -> Nothing
+        E.EmptyEv _ -> Nothing
         _ -> traceShow e undefined

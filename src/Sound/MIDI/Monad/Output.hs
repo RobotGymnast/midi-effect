@@ -52,13 +52,15 @@ startNote t note = do
         _ <- ioMIDI $ atomically . (`modifyTVar` refInsert c) . channels
         noteEvent t E.NoteOn note c
 
-stopNote t note = do
-        c <- lookup (instr note) <$> ioMIDI (atomically . readTVar . instrs) <&> (<?> error "Note not started")
+stopNote t note@(Note { instr = Percussion }) = noteEvent t E.NoteOff note percussionChannel
+stopNote t note@(Note { instr = Instrument i }) = do
+        c <- lookup i <$> ioMIDI (atomically . readTVar . instrs) <&> (<?> error "Note not started")
         _ <- ioMIDI $ atomically . (`modifyTVar` \m -> refDelete c m <?> m) . channels
         noteEvent t E.NoteOff note c
 
 instrument :: Instrument -> MIDI E.Channel
-instrument i = do
+instrument Percussion = return percussionChannel
+instrument (Instrument i) = do
                 chnls <- ioMIDI $ \cxt -> atomically $ readTVar $ instrs cxt
                 return <$> lookup i chnls <?> allocChannel chnls
     where
@@ -67,7 +69,7 @@ instrument i = do
                              in do event 0 $ E.CtrlEv E.PgmChange e
                                    ioMIDI $ \cxt -> atomically $ c <$ modifyTVar (instrs cxt) (insert i c)
 
-        unusedChannel chnls = let midiChannels = E.Channel <$> [0..9] <> [11..15]
+        unusedChannel chnls = let midiChannels = set (E.Channel <$> [0..15]) \\ set [percussionChannel]
                               in head (toList $ set midiChannels \\ set (toList chnls)) <?> error "Out of channels"
 
 -- | Play a melody and flush the buffer

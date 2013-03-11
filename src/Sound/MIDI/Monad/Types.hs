@@ -14,6 +14,7 @@ module Sound.MIDI.Monad.Types ( Note (..)
                               , toALSA
                               , fromALSA
                               , middleC
+                              , percussionChannel
                               ) where
 
 import Prelewd
@@ -27,8 +28,11 @@ import qualified Sound.ALSA.Sequencer.Time as T
 
 newtype Tick = Tick Word32 deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
 newtype Pitch = Pitch Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
-newtype Instrument = Instrument Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
 newtype Velocity = Velocity Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
+
+data Instrument = Percussion
+                | Instrument Word8
+    deriving (Show, Eq, Ord)
 
 data Note = Note
         { pitch :: Pitch
@@ -55,8 +59,13 @@ toALSA (Pitch p, Velocity v) c = E.simpleNote c (E.Pitch p) (E.Velocity v)
 fromALSA :: E.Note -> Note
 fromALSA = Note 
        <$> Pitch . E.unPitch . E.noteNote
-       <*> Instrument . E.unChannel . E.noteChannel
+       <*> toInstrument . E.noteChannel
        <*> Velocity . E.unVelocity . E.noteVelocity
+    where
+        toInstrument c = iff (c == percussionChannel) Percussion $ Instrument $ E.unChannel c
 
 middleC :: Pitch
 middleC = 60
+
+percussionChannel :: E.Channel
+percussionChannel = E.Channel 9
