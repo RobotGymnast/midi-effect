@@ -70,7 +70,7 @@ instrument (Instrument i) = do
                                    ioMIDI $ \cxt -> atomically $ c <$ modifyTVar (instrs cxt) (insert i c)
 
         unusedChannel chnls = let midiChannels = set (E.Channel <$> [0..15]) \\ set [percussionChannel]
-                              in head (toList $ set midiChannels \\ set (toList chnls)) <?> error "Out of channels"
+                              in head (toList $ midiChannels \\ set (toList chnls)) <?> error "Out of channels"
 
 -- | Play a melody and flush the buffer
 playNotes :: Foldable t => t (Tick, Tick, Note) -> MIDI ()
