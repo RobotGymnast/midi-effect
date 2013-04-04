@@ -56,11 +56,12 @@ toALSA :: (Pitch, Velocity) -> E.Channel -> E.Note
 toALSA (Pitch p, Velocity v) c = E.simpleNote c (E.Pitch p) (E.Velocity v)
 
 -- | The Instrument is just the Channel
-fromALSA :: E.Note -> Note
-fromALSA = Note 
-       <$> Pitch . E.unPitch . E.noteNote
-       <*> toInstrument . E.noteChannel
-       <*> Velocity . E.unVelocity . E.noteVelocity
+fromALSA :: E.Note -> (Bool, Note)
+fromALSA note = let v = E.unVelocity $ E.noteVelocity $ note
+                in (v > 0, Note (Pitch $ E.unPitch $ E.noteNote note)
+                                (toInstrument $ E.noteChannel note)
+                                (Velocity v)
+                         )
     where
         toInstrument c = iff (c == percussionChannel) Percussion $ Instrument $ E.unChannel c
 
