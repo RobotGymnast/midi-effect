@@ -43,20 +43,21 @@ event start e = ioMIDI $ \cxt -> let
                 }
         in io $ void $ E.output (seqT cxt) ev
 
-noteEvent :: Tick -> E.NoteEv -> Note -> E.Channel -> MIDI ()
-noteEvent t e note = event t . E.NoteEv e . toALSA (pitch note, vcty note)
+noteEvent :: Tick -> E.NoteEv -> Pitch -> Maybe Velocity -> E.Channel -> MIDI ()
+noteEvent t e p v = event t . E.NoteEv e . toALSA p (v <?> 0)
 
-startNote, stopNote :: Tick -> Note -> MIDI ()
-startNote t note = do
-        c <- instrument (instr note)
+startNote :: Tick -> Velocity -> Note -> MIDI ()
+startNote t v (p, instr) = do
+        c <- instrument instr
         _ <- ioMIDI $ atomically . (`modifyTVar` refInsert c) . channels
-        noteEvent t E.NoteOn note c
+        noteEvent t E.NoteOn p (Just v) c
 
-stopNote t note@(Note { instr = Percussion }) = noteEvent t E.NoteOff note percussionChannel
-stopNote t note@(Note { instr = Instrument i }) = do
+stopNote :: Tick -> Note -> MIDI ()
+stopNote t (p, Percussion) = noteEvent t E.NoteOff p Nothing percussionChannel
+stopNote t (p, Instrument i) = do
         c <- lookup i <$> ioMIDI (atomically . readTVar . instrs) <&> (<?> error "Note not started")
         _ <- ioMIDI $ atomically . (`modifyTVar` \m -> refDelete c m <?> m) . channels
-        noteEvent t E.NoteOff note c
+        noteEvent t E.NoteOff p Nothing c
 
 instrument :: Instrument -> MIDI E.Channel
 instrument Percussion = return percussionChannel
@@ -73,7 +74,7 @@ instrument (Instrument i) = do
                               in head (toList $ midiChannels \\ set (toList chnls)) <?> error "Out of channels"
 
 -- | Play a melody and flush the buffer
-playNotes :: Foldable t => t (Tick, Tick, Note) -> MIDI ()
+playNotes :: Foldable t => t (Tick, Tick, Velocity, Note) -> MIDI ()
 playNotes notes = traverse_ playNote notes >> flush
     where
-        playNote (start, duration, note) = startNote start note >> stopNote (start + duration) note
+        playNote (start, duration, v, note) = startNote start v note >> stopNote (start + duration) note

@@ -19,12 +19,12 @@ repeatM p m = do b <- p
                  iff b (return []) $ m <&> (:) <*> repeatM p m
 
 -- | MIDI note events; True indicates pressed.
-midiIn :: MIDI [(Bool, Note)]
+midiIn :: MIDI [(Maybe Velocity, Note)]
 midiIn = ioMIDI $ \cxt -> io $ mapMaybe id <$> midiInIO (seqT cxt)
     where
         midiInIO h = fromEvent <$$> repeatM (E.inputPending h True <&> (== 0)) (E.input h)
 
-fromEvent :: E.T -> Maybe (Bool, Note)
+fromEvent :: E.T -> Maybe (Maybe Velocity, Note)
 fromEvent e = case E.body e of
         E.NoteEv E.NoteOn note -> Just $ fromALSA note
         E.NoteEv E.NoteOff _ -> error "ALSA input NoteOff event"
