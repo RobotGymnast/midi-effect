@@ -21,9 +21,9 @@ import Text.Show
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Time as T
 
-newtype Tick = Tick Word32 deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
-newtype Pitch = Pitch Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
-newtype Velocity = Velocity Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
+newtype Tick = Tick Word32 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
+newtype Pitch = Pitch Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
+newtype Velocity = Velocity Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
 
 data Instrument = Percussion
                 | Instrument Word8
