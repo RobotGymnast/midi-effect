@@ -5,7 +5,6 @@ module Sound.MIDI.Monad.Input ( midiIn
 
 import Prelewd
 
-import Impure
 import IO
 
 import Sound.MIDI.Monad.Core
@@ -27,7 +26,5 @@ midiIn = ioMIDI $ \cxt -> io $ mapMaybe id <$> midiInIO (seqT cxt)
 fromEvent :: E.T -> Maybe (Maybe Velocity, Note)
 fromEvent e = case E.body e of
         E.NoteEv E.NoteOn note -> Just $ fromALSA note
-        E.NoteEv E.NoteOff _ -> error "ALSA input NoteOff event"
-        E.CtrlEv _ _ -> Nothing
-        E.EmptyEv _ -> Nothing
-        _ -> traceShow e undefined
+        E.NoteEv E.NoteOff note -> Just $ map2 (>> Nothing) $ fromALSA note
+        _ -> Nothing
