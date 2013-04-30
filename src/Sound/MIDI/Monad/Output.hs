@@ -19,7 +19,7 @@ import Data.Word
 import Storage.List
 import Storage.Map
 import Storage.Refcount
-import Storage.Set
+import Storage.Set hiding (insert)
 
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Queue as Q
