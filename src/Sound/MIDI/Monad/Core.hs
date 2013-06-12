@@ -5,8 +5,8 @@ module Sound.MIDI.Monad.Core ( MIDI
                              , MIDIContext (..)
                              , seqT'
                              , qT'
-                             , connOut'
-                             , connIn'
+                             , connsOut'
+                             , connsIn'
                              , instrs'
                              , channels'
                              , ioMIDI
@@ -35,8 +35,8 @@ import qualified Sound.ALSA.Sequencer as S
 data MIDIContext = MIDIContext
             { seqT      :: S.T S.DuplexMode
             , qT        :: Q.T
-            , connOut   :: Connect.T
-            , connIn    :: Connect.T
+            , connsOut  :: [Connect.T]      -- ^ Outbound connection handles
+            , connsIn   :: [Connect.T]      -- ^ Inbound connection handles
             , instrs    :: TVar (Map Word8 E.Channel)
             , channels  :: TVar (Refcount E.Channel)
             }
@@ -66,29 +66,31 @@ instance Functor MIDI where fmap = liftA
 
 -- | Perform MIDI I/O
 runMIDI :: Text     -- ^ Client name
-        -> Text     -- ^ Output destination
-        -> Text     -- ^ Input destination
+        -> [Text]   -- ^ Output destination ports
+        -> [Text]   -- ^ Input destination ports
         -> MIDI ()  -- ^ MIDI action
         -> IO ()
-runMIDI name output input m = io $ S.withDefault S.Nonblock $ \h -> do
+runMIDI name outputs inputs m = io $ S.withDefault S.Nonblock $ \h -> do
         C.setName h name
         P.withSimple h "io"
             (P.caps [P.capRead, P.capSubsRead, P.capWrite])
             (P.types [P.typeMidiGeneric, P.typeApplication])
             $ \p -> Q.with h $ \q -> do
-                    outConn <- Connect.createTo h p =<< Addr.parse h output
-                    inConn <- Connect.createFrom h p =<< Addr.parse h input
+                    outConns <- parseAndCreatePorts Connect.createTo h p outputs
+                    inConns <- parseAndCreatePorts Connect.createFrom h p inputs
                     Q.control h q E.QueueStart Nothing
                     instruments <- newTVarIO mempty
                     chnls <- newTVarIO mempty
                     runIO $ raw m $ MIDIContext
                             { seqT      = h
                             , qT        = q
-                            , connOut   = outConn
-                            , connIn    = inConn
+                            , connsOut  = outConns
+                            , connsIn   = inConns
                             , instrs    = instruments
                             , channels  = chnls
                             }
+    where
+        parseAndCreatePorts ctor h p = traverse $ \port -> Addr.parse h port >>= ctor h p
 
 -- | Lift IO to MIDI I/O
 ioMIDI :: (MIDIContext -> IO a) -> MIDI a

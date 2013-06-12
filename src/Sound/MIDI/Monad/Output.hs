@@ -36,12 +36,13 @@ flush :: MIDI ()
 flush = ioMIDI $ \cxt -> io $ void $ E.drainOutput $ seqT cxt
 
 event :: Tick -> E.Data -> MIDI ()
-event start e = ioMIDI $ \cxt -> let
-            ev = (E.forConnection (connOut cxt) e)
-                { E.queue = qT cxt
-                , E.time = T.consRel $ tickALSA start
-                }
-        in io $ void $ E.output (seqT cxt) ev
+event start e = ioMIDI $ io <<< (multiDestEvent <$> qT <*> seqT <*> connsOut)
+    where
+        multiDestEvent q sequ = traverse_ $ singleDestEvent q >>> E.output sequ
+        singleDestEvent q out = ( E.forConnection out e )
+                                { E.queue = q
+                                , E.time = T.consRel $ tickALSA start
+                                }
 
 noteEvent :: Tick -> E.NoteEv -> Pitch -> Maybe Velocity -> E.Channel -> MIDI ()
 noteEvent t e p v = event t . E.NoteEv e . toALSA p (v <?> 0)
