@@ -19,9 +19,10 @@ repeatM p m = do b <- p
 
 -- | MIDI note events; True indicates pressed.
 midiIn :: MIDI [(Maybe Velocity, Note)]
-midiIn = ioMIDI $ \cxt -> io $ mapMaybe id <$> midiInIO (seqT cxt)
+midiIn = ioMIDI $ \cxt -> io $ ioFetchConvertedEvents $ seqT cxt
     where
-        midiInIO h = fromEvent <$$> repeatM (E.inputPending h True <&> (== 0)) (E.input h)
+        ioFetchConvertedEvents h = repeatM (E.inputPending h True <&> (== 0)) (E.input h)
+                               <&> mapMaybe fromEvent
 
 fromEvent :: E.T -> Maybe (Maybe Velocity, Note)
 fromEvent e = case E.body e of

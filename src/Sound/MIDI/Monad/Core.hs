@@ -33,8 +33,8 @@ import qualified Sound.ALSA.Sequencer as S
 
 -- | Context for MIDI I/O actions
 data MIDIContext = MIDIContext
-            { seqT      :: S.T S.DuplexMode
-            , qT        :: Q.T
+            { seqT      :: S.T S.DuplexMode -- ^ Sequencer handle
+            , qT        :: Q.T              -- ^ Queue handle
             , connsOut  :: [Connect.T]      -- ^ Outbound connection handles
             , connsIn   :: [Connect.T]      -- ^ Inbound connection handles
             , instrs    :: TVar (Map Word8 E.Channel)
