@@ -11,7 +11,6 @@ module Sound.MIDI.Monad.Types ( Note
                               , toALSA
                               , fromALSA
                               , middleC
-                              , percussionChannel
                               ) where
 
 import Prelewd
@@ -56,6 +55,3 @@ fromALSA = cast (> 0) . Velocity . E.unVelocity . E.noteVelocity
 
 middleC :: Pitch
 middleC = 60
-
-percussionChannel :: E.Channel
-percussionChannel = E.Channel 9

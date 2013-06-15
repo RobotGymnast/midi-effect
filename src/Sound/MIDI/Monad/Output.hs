@@ -50,28 +50,28 @@ event start e = ioMIDI $ io <<< (multiDestEvent <$> qT <*> seqT <*> connsOut)
 noteEvent :: Tick -> E.NoteEv -> Pitch -> Maybe Velocity -> E.Channel -> MIDI ()
 noteEvent t e p v = event t . E.NoteEv e . toALSA p (v <?> 0)
 
-startNote :: Tick -> Velocity -> Note -> MIDI ()
-startNote t v (p, instr) = do
-        c <- instrumentChannel instr <??> allocateChannel instr
+startNote :: Word8 -> Tick -> Velocity -> Note -> MIDI ()
+startNote drumChannel t v (p, instr) = do
+        c <- instrumentChannel drumChannel instr <??> allocateChannel drumChannel instr
         _ <- ioMIDI $ atomically . (`modifyTVar` refInsert c) . channels
         noteEvent t E.NoteOn p (Just v) c
 
-stopNote :: Tick -> Note -> MIDI ()
-stopNote t (p, instr) = do
-        c <- instrumentChannel instr <&> (<?> error "Note not started.")
+stopNote :: Word8 -> Tick -> Note -> MIDI ()
+stopNote drumChannel t (p, instr) = do
+        c <- instrumentChannel drumChannel instr <&> (<?> error "Note not started.")
         _ <- noteEvent t E.NoteOff p Nothing c
         void $ ioMIDI $ releaseChannel c
     where
         releaseChannel c = atomically . (`modifyTVar` \m -> refDelete c m <?> m) . channels
 
-instrumentChannel :: Instrument -> MIDI (Maybe E.Channel)
-instrumentChannel Percussion = pure $ pure percussionChannel
-instrumentChannel (Instrument i) = ioMIDI $ atomically . readTVar . instrChannels
-                                        >>> map (lookup i)
+instrumentChannel :: Word8 -> Instrument -> MIDI (Maybe E.Channel)
+instrumentChannel drumChannel Percussion = pure $ pure $ E.Channel drumChannel
+instrumentChannel _ (Instrument i) = ioMIDI $ atomically . readTVar . instrChannels
+                                          >>> map (lookup i)
 
-allocateChannel :: Instrument -> MIDI E.Channel
-allocateChannel Percussion = pure percussionChannel
-allocateChannel (Instrument i) = do
+allocateChannel :: Word8 -> Instrument -> MIDI E.Channel
+allocateChannel drumChannel Percussion = pure $ E.Channel drumChannel
+allocateChannel drumChannel (Instrument i) = do
         c <- unusedChannel
         event 0 $ E.CtrlEv E.PgmChange
                 $ E.Ctrl c (E.Parameter 0)
@@ -82,11 +82,12 @@ allocateChannel (Instrument i) = do
                 chnls <- keys <$> atomically (readTVar $ channels cxt)
                 let unusedChannels = set (E.Channel <$> [0..15])
                                   \\ set chnls
-                                  \\ set [percussionChannel]
+                                  \\ set [E.Channel drumChannel]
                 pure $ head (toList unusedChannels) <?> error "Out of channels"
 
 -- | Play a melody and flush the buffer
-playNotes :: Foldable t => t (Tick, Tick, Velocity, Note) -> MIDI ()
-playNotes notes = traverse_ playNote notes >> flush
+playNotes :: Foldable t => Word8 -> t (Tick, Tick, Velocity, Note) -> MIDI ()
+playNotes drumChannel notes = traverse_ playNote notes >> flush
     where
-        playNote (start, duration, v, note) = startNote start v note >> stopNote (start + duration) note
+        playNote (start, duration, v, note) = startNote drumChannel start v note
+                                           >> stopNote drumChannel (start + duration) note
