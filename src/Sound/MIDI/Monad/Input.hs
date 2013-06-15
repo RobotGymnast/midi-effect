@@ -1,11 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude
+           , TupleSections
            #-}
 module Sound.MIDI.Monad.Input ( midiIn
                               ) where
 
 import Prelewd
 
+import Impure
 import IO
+
+import Storage.Map
 
 import Sound.MIDI.Monad.Core
 import Sound.MIDI.Monad.Types
@@ -19,13 +23,17 @@ repeatM p m = do b <- p
 
 -- | MIDI input events
 midiIn :: MIDI [(Maybe Velocity, Note)]
-midiIn = ioMIDI $ io . ioFetchConvertedEvents . seqT
+midiIn = ioMIDI $ io . (ioFetchConvertedEvents <$> sourceToInstr <*> seqT)
     where
-        ioFetchConvertedEvents h = repeatM (E.inputPending h True <&> (== 0)) (E.input h)
-                               <&> mapMaybe fromEvent
+        ioFetchConvertedEvents instrs h = repeatM (E.inputPending h True <&> (== 0))
+                                                  (E.input h)
+                                      <&> mapMaybe (fromEvent instrs)
 
-fromEvent :: E.T -> Maybe (Maybe Velocity, Note)
-fromEvent e = case E.body e of
-        E.NoteEv E.NoteOn note -> Just $ fromALSA note
-        E.NoteEv E.NoteOff note -> Just $ map2 (>> Nothing) $ fromALSA note
+fromEvent :: Map MIDIAddress Instrument -> E.T -> Maybe (Maybe Velocity, Note)
+fromEvent instrs e = case E.body e of
+        E.NoteEv state note -> Just $ if' (state == E.NoteOff) (map2 (>> Nothing))
+                                    $ map (, instrument)
+                                    $ fromALSA note
         _ -> Nothing
+    where
+        instrument = lookup (E.source e) instrs <?> error "Unknown input source"

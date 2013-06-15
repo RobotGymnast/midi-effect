@@ -59,8 +59,8 @@ startNote t v (p, instr) = do
 stopNote :: Tick -> Note -> MIDI ()
 stopNote t (p, instr) = do
         c <- instrumentChannel instr <&> (<?> error "Note not started.")
-        _ <- ioMIDI $ releaseChannel c
-        noteEvent t E.NoteOff p Nothing c
+        _ <- noteEvent t E.NoteOff p Nothing c
+        void $ ioMIDI $ releaseChannel c
     where
         releaseChannel c = atomically . (`modifyTVar` \m -> refDelete c m <?> m) . channels
 
@@ -73,9 +73,10 @@ allocateChannel :: Instrument -> MIDI E.Channel
 allocateChannel Percussion = pure percussionChannel
 allocateChannel (Instrument i) = do
         c <- unusedChannel
-        let e = E.Ctrl c (E.Parameter 0) $ E.Value $ fromIntegral i
-        event 0 $ E.CtrlEv E.PgmChange e
-        ioMIDI $ \cxt -> atomically $ c <$ modifyTVar (instrChannels cxt) (insert i c)
+        event 0 $ E.CtrlEv E.PgmChange
+                $ E.Ctrl c (E.Parameter 0)
+                $ E.Value $ fromIntegral i
+        c <$ ioMIDI (\cxt -> atomically $ modifyTVar (instrChannels cxt) (insert i c))
     where
         unusedChannel = ioMIDI $ \cxt -> do
                 chnls <- keys <$> atomically (readTVar $ channels cxt)

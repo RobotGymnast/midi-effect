@@ -50,13 +50,9 @@ tickALSA (Tick t) = T.Tick t
 toALSA :: Pitch -> Velocity -> E.Channel -> E.Note
 toALSA (Pitch p) (Velocity v) c = E.simpleNote c (E.Pitch p) (E.Velocity v)
 
--- | The Instrument is just the Channel
-fromALSA :: E.Note -> (Maybe Velocity, Note)
+fromALSA :: E.Note -> (Maybe Velocity, Pitch)
 fromALSA = cast (> 0) . Velocity . E.unVelocity . E.noteVelocity
        &&& Pitch . E.unPitch . E.noteNote
-       &&& toInstrument . E.noteChannel
-    where
-        toInstrument c = iff (c == percussionChannel) Percussion $ Instrument $ E.unChannel c
 
 middleC :: Pitch
 middleC = 60

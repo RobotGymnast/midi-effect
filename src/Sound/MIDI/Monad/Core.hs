@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude
+           , TupleSections
            , TemplateHaskell
            #-}
 module Sound.MIDI.Monad.Core ( MIDI
@@ -9,6 +10,7 @@ module Sound.MIDI.Monad.Core ( MIDI
                              , connsIn'
                              , instrChannels'
                              , channels'
+                             , sourceToInstr'
                              , ioMIDI
                              , runMIDI
                              ) where
@@ -31,6 +33,14 @@ import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Queue as Q
 import qualified Sound.ALSA.Sequencer as S
 
+import Sound.MIDI.Monad.Types
+
+-- | traverse on the first of two type parameters
+traverse2 :: (Ord b, Applicative m) => (a -> m b) -> Map a z -> m (Map b z)
+traverse2 f = assocs >>> traverse (map2 f >>> sequence2) >>> map fromList
+    where
+        sequence2 (m, x) = m <&> (, x)
+
 -- | Context for MIDI I/O actions
 data MIDIContext = MIDIContext
             { seqT          :: S.T S.DuplexMode             -- ^ Sequencer handle
@@ -40,6 +50,8 @@ data MIDIContext = MIDIContext
             , instrChannels :: TVar (Map Word8 E.Channel)   -- ^ What instrument's on what
                                                             -- channel?
             , channels      :: TVar (Refcount E.Channel)    -- ^ What channels are in use?
+            , sourceToInstr :: Map MIDIAddress Instrument   -- ^ Determine instrument
+                                                            -- from input source
             }
 
 $(memberTransformers ''MIDIContext)
@@ -68,7 +80,7 @@ instance Functor MIDI where fmap = liftA
 -- | Perform MIDI I/O
 runMIDI :: Text                         -- ^ Client name
         -> [Text]                       -- ^ MIDI output destinations
-        -> [Text]                       -- ^ MIDI input sources
+        -> Map Text Instrument          -- ^ MIDI input source to instrument mapping
         -> MIDI ()                      -- ^ MIDI action
         -> IO ()
 runMIDI name outputs inputs m = io $ S.withDefault S.Nonblock $ \h -> do
@@ -77,8 +89,10 @@ runMIDI name outputs inputs m = io $ S.withDefault S.Nonblock $ \h -> do
             (P.caps [P.capRead, P.capSubsRead, P.capWrite])
             (P.types [P.typeMidiGeneric, P.typeApplication])
             $ \p -> Q.with h $ \q -> do
-                    dests <- parseAndCreatePorts Connect.createTo h p outputs
-                    sources <- parseAndCreatePorts Connect.createFrom h p inputs
+                    dests <- traverse (Addr.parse h) outputs
+                         >>= traverse (Connect.createTo h p)
+                    sourcesToInstrs <- traverse2 (Addr.parse h) inputs
+                    sources <- traverse (Connect.createFrom h p) $ keys sourcesToInstrs
                     Q.control h q E.QueueStart Nothing
                     instruments <- newTVarIO mempty
                     chnls <- newTVarIO mempty
@@ -89,9 +103,8 @@ runMIDI name outputs inputs m = io $ S.withDefault S.Nonblock $ \h -> do
                             , connsIn           = sources
                             , instrChannels     = instruments
                             , channels          = chnls
+                            , sourceToInstr     = sourcesToInstrs
                             }
-    where
-        parseAndCreatePorts ctor h p = traverse $ \port -> Addr.parse h port >>= ctor h p
 
 -- | Lift IO to MIDI I/O
 ioMIDI :: (MIDIContext -> IO a) -> MIDI a
