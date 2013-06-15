@@ -1,7 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude
            #-}
 module Sound.MIDI.Monad.Output ( tempo
-                               , instrument
                                , flush
                                , toALSA
                                , startNote
@@ -28,6 +27,10 @@ import qualified Sound.ALSA.Sequencer.Time as T
 import Sound.MIDI.Monad.Core as Monad
 import Sound.MIDI.Monad.Types as Types
 
+(<??>) :: Monad m => m (Maybe a) -> m a -> m a
+(<??>) m a = do x <- m
+                return <$> x <?> a
+
 tempo :: Word32     -- ^ Microseconds per beat
       -> MIDI ()
 tempo t = ioMIDI $ \cxt -> io $ Q.control (seqT cxt) (qT cxt) (E.QueueTempo $ E.Tempo $ fromIntegral t) Nothing
@@ -49,30 +52,37 @@ noteEvent t e p v = event t . E.NoteEv e . toALSA p (v <?> 0)
 
 startNote :: Tick -> Velocity -> Note -> MIDI ()
 startNote t v (p, instr) = do
-        c <- instrument instr
+        c <- instrumentChannel instr <??> allocateChannel instr
         _ <- ioMIDI $ atomically . (`modifyTVar` refInsert c) . channels
         noteEvent t E.NoteOn p (Just v) c
 
 stopNote :: Tick -> Note -> MIDI ()
-stopNote t (p, Percussion) = noteEvent t E.NoteOff p Nothing percussionChannel
-stopNote t (p, Instrument i) = do
-        c <- lookup i <$> ioMIDI (atomically . readTVar . instrs) <&> (<?> error "Note not started")
-        _ <- ioMIDI $ atomically . (`modifyTVar` \m -> refDelete c m <?> m) . channels
+stopNote t (p, instr) = do
+        c <- instrumentChannel instr <&> (<?> error "Note not started.")
+        _ <- ioMIDI $ releaseChannel c
         noteEvent t E.NoteOff p Nothing c
-
-instrument :: Instrument -> MIDI E.Channel
-instrument Percussion = return percussionChannel
-instrument (Instrument i) = do
-                chnls <- ioMIDI $ \cxt -> atomically $ readTVar $ instrs cxt
-                return <$> lookup i chnls <?> allocChannel chnls
     where
-        allocChannel chnls = let c = unusedChannel chnls
-                                 e = E.Ctrl c (E.Parameter 0) $ E.Value $ fromIntegral i
-                             in do event 0 $ E.CtrlEv E.PgmChange e
-                                   ioMIDI $ \cxt -> atomically $ c <$ modifyTVar (instrs cxt) (insert i c)
+        releaseChannel c = atomically . (`modifyTVar` \m -> refDelete c m <?> m) . channels
 
-        unusedChannel chnls = let midiChannels = set (E.Channel <$> [0..15]) \\ set [percussionChannel]
-                              in head (toList $ midiChannels \\ set (toList chnls)) <?> error "Out of channels"
+instrumentChannel :: Instrument -> MIDI (Maybe E.Channel)
+instrumentChannel Percussion = pure $ pure percussionChannel
+instrumentChannel (Instrument i) = ioMIDI $ atomically . readTVar . instrChannels
+                                        >>> map (lookup i)
+
+allocateChannel :: Instrument -> MIDI E.Channel
+allocateChannel Percussion = pure percussionChannel
+allocateChannel (Instrument i) = do
+        c <- unusedChannel
+        let e = E.Ctrl c (E.Parameter 0) $ E.Value $ fromIntegral i
+        event 0 $ E.CtrlEv E.PgmChange e
+        ioMIDI $ \cxt -> atomically $ c <$ modifyTVar (instrChannels cxt) (insert i c)
+    where
+        unusedChannel = ioMIDI $ \cxt -> do
+                chnls <- keys <$> atomically (readTVar $ channels cxt)
+                let unusedChannels = set (E.Channel <$> [0..15])
+                                  \\ set chnls
+                                  \\ set [percussionChannel]
+                pure $ head (toList unusedChannels) <?> error "Out of channels"
 
 -- | Play a melody and flush the buffer
 playNotes :: Foldable t => t (Tick, Tick, Velocity, Note) -> MIDI ()

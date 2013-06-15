@@ -7,7 +7,7 @@ module Sound.MIDI.Monad.Core ( MIDI
                              , qT'
                              , connsOut'
                              , connsIn'
-                             , instrs'
+                             , instrChannels'
                              , channels'
                              , ioMIDI
                              , runMIDI
@@ -33,12 +33,13 @@ import qualified Sound.ALSA.Sequencer as S
 
 -- | Context for MIDI I/O actions
 data MIDIContext = MIDIContext
-            { seqT      :: S.T S.DuplexMode -- ^ Sequencer handle
-            , qT        :: Q.T              -- ^ Queue handle
-            , connsOut  :: [Connect.T]      -- ^ Outbound connection handles
-            , connsIn   :: [Connect.T]      -- ^ Inbound connection handles
-            , instrs    :: TVar (Map Word8 E.Channel)
-            , channels  :: TVar (Refcount E.Channel)
+            { seqT          :: S.T S.DuplexMode             -- ^ Sequencer handle
+            , qT            :: Q.T                          -- ^ Queue handle
+            , connsOut      :: [Connect.T]                  -- ^ Outbound connection handles
+            , connsIn       :: [Connect.T]                  -- ^ Inbound connection handles
+            , instrChannels :: TVar (Map Word8 E.Channel)   -- ^ What instrument's on what
+                                                            -- channel?
+            , channels      :: TVar (Refcount E.Channel)    -- ^ What channels are in use?
             }
 
 $(memberTransformers ''MIDIContext)
@@ -65,10 +66,10 @@ instance Applicative MIDI where
 instance Functor MIDI where fmap = liftA
 
 -- | Perform MIDI I/O
-runMIDI :: Text     -- ^ Client name
-        -> [Text]   -- ^ Output destination ports
-        -> [Text]   -- ^ Input destination ports
-        -> MIDI ()  -- ^ MIDI action
+runMIDI :: Text                         -- ^ Client name
+        -> [Text]                       -- ^ MIDI output destinations
+        -> [Text]                       -- ^ MIDI input sources
+        -> MIDI ()                      -- ^ MIDI action
         -> IO ()
 runMIDI name outputs inputs m = io $ S.withDefault S.Nonblock $ \h -> do
         C.setName h name
@@ -76,18 +77,18 @@ runMIDI name outputs inputs m = io $ S.withDefault S.Nonblock $ \h -> do
             (P.caps [P.capRead, P.capSubsRead, P.capWrite])
             (P.types [P.typeMidiGeneric, P.typeApplication])
             $ \p -> Q.with h $ \q -> do
-                    outConns <- parseAndCreatePorts Connect.createTo h p outputs
-                    inConns <- parseAndCreatePorts Connect.createFrom h p inputs
+                    dests <- parseAndCreatePorts Connect.createTo h p outputs
+                    sources <- parseAndCreatePorts Connect.createFrom h p inputs
                     Q.control h q E.QueueStart Nothing
                     instruments <- newTVarIO mempty
                     chnls <- newTVarIO mempty
                     runIO $ raw m $ MIDIContext
-                            { seqT      = h
-                            , qT        = q
-                            , connsOut  = outConns
-                            , connsIn   = inConns
-                            , instrs    = instruments
-                            , channels  = chnls
+                            { seqT              = h
+                            , qT                = q
+                            , connsOut          = dests
+                            , connsIn           = sources
+                            , instrChannels     = instruments
+                            , channels          = chnls
                             }
     where
         parseAndCreatePorts ctor h p = traverse $ \port -> Addr.parse h port >>= ctor h p

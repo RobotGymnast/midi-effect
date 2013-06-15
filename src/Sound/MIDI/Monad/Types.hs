@@ -2,6 +2,7 @@
            , GeneralizedNewtypeDeriving
            #-}
 module Sound.MIDI.Monad.Types ( Note
+                              , MIDIAddress
                               , Tick (..)
                               , Pitch (..)
                               , Instrument (..)
@@ -18,6 +19,7 @@ import Prelewd
 import Data.Word
 import Text.Show
 
+import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Time as T
 
@@ -32,6 +34,7 @@ data Instrument = Percussion
     deriving (Show, Eq, Ord)
 
 type Note = (Pitch, Instrument)
+type MIDIAddress = Addr.T
 
 instance Arbitrary Tick where arbitrary = Tick <$> arbitrary
 instance Arbitrary Pitch where arbitrary = Pitch <$> arbitrary

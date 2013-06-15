@@ -17,9 +17,9 @@ repeatM :: (Applicative m, Monad m) => m Bool -> m a -> m [a]
 repeatM p m = do b <- p
                  iff b (return []) $ m <&> (:) <*> repeatM p m
 
--- | MIDI note events; True indicates pressed.
+-- | MIDI input events
 midiIn :: MIDI [(Maybe Velocity, Note)]
-midiIn = ioMIDI $ \cxt -> io $ ioFetchConvertedEvents $ seqT cxt
+midiIn = ioMIDI $ io . ioFetchConvertedEvents . seqT
     where
         ioFetchConvertedEvents h = repeatM (E.inputPending h True <&> (== 0)) (E.input h)
                                <&> mapMaybe fromEvent
