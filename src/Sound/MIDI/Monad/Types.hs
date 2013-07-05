@@ -22,7 +22,7 @@ import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Time as T
 
-import Test.QuickCheck (Arbitrary (..))
+import Test
 
 newtype Tick = Tick Word32 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
 newtype Pitch = Pitch Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
@@ -41,6 +41,11 @@ instance Arbitrary Velocity where arbitrary = Velocity <$> arbitrary
 
 instance Arbitrary Instrument where
     arbitrary = Instrument <$$> arbitrary <&> (<?> Percussion)
+
+instance ResultEq Tick
+instance ResultEq Pitch
+instance ResultEq Velocity
+instance ResultEq Instrument
 
 tickALSA :: Tick -> T.Stamp
 tickALSA (Tick t) = T.Tick t
