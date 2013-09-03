@@ -15,15 +15,14 @@ module Sound.MIDI.Monad.Core ( MIDI
                              , runMIDI
                              ) where
 
-import Prelewd
-
-import IO
-import STM
+import Summit.Data.Map
+import Summit.Data.Refcount
+import Summit.IO
+import Summit.Prelewd
+import Summit.STM
+import Summit.Template.MemberTransformer
 
 import Data.Word
-import Storage.Map
-import Storage.Refcount
-import Template.MemberTransformer
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Client as C

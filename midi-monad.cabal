@@ -16,7 +16,7 @@ library
 
     build-depends: 
                     alsa-seq,
-                    Summit >= 0.11,
+                    Summit >= 0.15,
                     Summit < 1.0,
                     QuickCheck >= 2,
                     base >= 4.5,

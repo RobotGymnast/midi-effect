@@ -8,17 +8,16 @@ module Sound.MIDI.Monad.Output ( tempo
                                , playNotes
                                ) where
 
-import Prelewd
-
-import IO
-import Impure
-import STM
+import Summit.Data.List
+import Summit.Data.Map
+import Summit.Data.Refcount
+import Summit.Data.Set hiding (insert)
+import Summit.IO
+import Summit.Impure
+import Summit.Prelewd
+import Summit.STM
 
 import Data.Word
-import Storage.List
-import Storage.Map
-import Storage.Refcount
-import Storage.Set hiding (insert)
 
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Queue as Q

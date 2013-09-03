@@ -4,12 +4,10 @@
 module Sound.MIDI.Monad.Input ( midiIn
                               ) where
 
-import Prelewd
-
-import Impure
-import IO
-
-import Storage.Map
+import Summit.Data.Map
+import Summit.Impure
+import Summit.IO
+import Summit.Prelewd
 
 import Sound.MIDI.Monad.Core
 import Sound.MIDI.Monad.Types

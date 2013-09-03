@@ -13,7 +13,8 @@ module Sound.MIDI.Monad.Types ( Note
                               , middleC
                               ) where
 
-import Prelewd
+import Summit.Prelewd
+import Summit.Test
 
 import Data.Word
 import Text.Show
@@ -21,8 +22,6 @@ import Text.Show
 import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Time as T
-
-import Test
 
 newtype Tick = Tick Word32 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
 newtype Pitch = Pitch Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
