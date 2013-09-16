@@ -17,19 +17,20 @@ import Summit.Prelewd
 import Summit.Test
 
 import Data.Word
-import Text.Show
+import Text.Show (Show)
+import Text.Read (Read)
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Time as T
 
-newtype Tick = Tick Word32 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
-newtype Pitch = Pitch Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
-newtype Velocity = Velocity Word8 deriving (Show, Eq, Ord, Num, Real, Enum, Bounded, Integral)
+newtype Tick = Tick Word32 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral)
+newtype Pitch = Pitch Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral)
+newtype Velocity = Velocity Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral)
 
 data Instrument = Percussion
                 | Instrument Word8
-    deriving (Show, Eq, Ord)
+    deriving (Show, Read, Eq, Ord)
 
 type Note = (Pitch, Instrument)
 type MIDIAddress = Addr.T
