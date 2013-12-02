@@ -16,6 +16,7 @@ module Sound.MIDI.Types ( Note
 import Summit.Prelewd
 import Summit.Test
 
+import Data.List (elemIndex)
 import Data.Word
 import Text.Show (Show (..))
 import Text.Read
@@ -30,10 +31,156 @@ newtype Velocity = Velocity Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum
 
 data Instrument = Percussion
                 | Instrument Word8
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord)
 
 type Note = (Pitch, Instrument)
 type MIDIAddress = Addr.T
+
+instruments :: [Text]
+instruments =
+  [ "AcousticGrandPiano"
+  , "BrightAcousticPiano"
+  , "ElectricGrandPiano"
+  , "HonkytonkPiano"
+  , "ElectricPiano1"
+  , "ElectricPiano2"
+  , "Harpsichord"
+  , "Clavinet"
+  , "Celesta"
+  , "Glockenspiel"
+  , "MusicBox"
+  , "Vibraphone"
+  , "Marimba"
+  , "Xylophone"
+  , "TubularBells"
+  , "Dulcimer"
+  , "DrawbarOrgan"
+  , "PercussiveOrgan"
+  , "RockOrgan"
+  , "ChurchOrgan"
+  , "ReedOrgan"
+  , "Accordion"
+  , "Harmonica"
+  , "TangoAccordion"
+  , "AcousticGuitarNylon"
+  , "AcousticGuitarSteel"
+  , "ElectricGuitarJazz"
+  , "ElectricGuitarClean"
+  , "ElectricGuitarMuted"
+  , "OverdrivenGuitar"
+  , "DistortionGuitar"
+  , "GuitarHarmonics"
+  , "AcousticBass"
+  , "ElectricBassFinger"
+  , "ElectricBassPick"
+  , "FretlessBass"
+  , "SlapBass1"
+  , "SlapBass2"
+  , "SynthBass1"
+  , "SynthBass2"
+  , "Violin"
+  , "Viola"
+  , "Cello"
+  , "Contrabass"
+  , "TremoloStrings"
+  , "PizzicatoStrings"
+  , "OrchestralHarp"
+  , "Timpani"
+  , "StringEnsemble1"
+  , "StringEnsemble2"
+  , "SynthStrings1"
+  , "SynthStrings2"
+  , "ChoirAahs"
+  , "VoiceOohs"
+  , "SynthChoir"
+  , "OrchestraHit"
+  , "Trumpet"
+  , "Trombone"
+  , "Tuba"
+  , "MutedTrumpet"
+  , "FrenchHorn"
+  , "BrassSection"
+  , "SynthBrass1"
+  , "SynthBrass2"
+  , "SopranoSax"
+  , "AltoSax"
+  , "TenorSax"
+  , "BaritoneSax"
+  , "Oboe"
+  , "EnglishHorn"
+  , "Bassoon"
+  , "Clarinet"
+  , "Piccolo"
+  , "Flute"
+  , "Recorder"
+  , "PanFlute"
+  , "Blownbottle"
+  , "Shakuhachi"
+  , "Whistle"
+  , "Ocarina"
+  , "Lead1Square"
+  , "Lead2Sawtooth"
+  , "Lead3Calliope"
+  , "Lead4Chiff"
+  , "Lead5Charang"
+  , "Lead6Voice"
+  , "Lead7Fifths"
+  , "Lead8BassLead"
+  , "Pad1Newage"
+  , "Pad2Warm"
+  , "Pad3Polysynth"
+  , "Pad4Choir"
+  , "Pad5Bowed"
+  , "Pad6Metallic"
+  , "Pad7Halo"
+  , "Pad8Sweep"
+  , "FX1Rain"
+  , "FX2Soundtrack"
+  , "FX3Crystal"
+  , "FX4Atmosphere"
+  , "FX5Brightness"
+  , "FX6Goblins"
+  , "FX7Echoes"
+  , "FX8Scifi"
+  , "Sitar"
+  , "Banjo"
+  , "Shamisen"
+  , "Koto"
+  , "Kalimba"
+  , "Bagpipe"
+  , "Fiddle"
+  , "Shanai"
+  , "TinkleBell"
+  , "Agogo"
+  , "SteelDrums"
+  , "Woodblock"
+  , "TaikoDrum"
+  , "MelodicTom"
+  , "SynthDrum"
+  , "ReverseCymbal"
+  , "GuitarFretNoise"
+  , "BreathNoise"
+  , "Seashore"
+  , "BirdTweet"
+  , "TelephoneRing"
+  , "Helicopter"
+  , "Applause"
+  , "Gunshot"
+  ]
+
+instance Show Instrument where
+  show Percussion = "Percussion"
+  show (Instrument i) = instruments ! fromIntegral i
+
+instance Read Instrument where
+  readPrec = parens $ do
+              Ident s <- lexP
+              iff (s == "Percussion")
+                  (return Percussion)
+                  ( return . Instrument . fromIntegral
+                <$> elemIndex s instruments
+                <?> pfail
+                  )
 
 instance Arbitrary Tick where arbitrary = Tick <$> arbitrary
 instance Arbitrary Pitch where arbitrary = Pitch <$> arbitrary
