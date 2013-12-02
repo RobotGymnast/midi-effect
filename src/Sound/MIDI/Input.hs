@@ -1,16 +1,22 @@
 {-# LANGUAGE NoImplicitPrelude
            , TupleSections
+           , FlexibleContexts
+           , TypeOperators
            #-}
-module Sound.MIDI.Monad.Input ( midiIn
-                              ) where
+module Sound.MIDI.Input ( midiIn
+                        ) where
 
 import Summit.Data.Map
 import Summit.Impure
 import Summit.IO
 import Summit.Prelewd
 
-import Sound.MIDI.Monad.Core
-import Sound.MIDI.Monad.Types
+import Control.Eff
+import Control.Eff.Lift
+import Control.Eff.State.Strict
+
+import Sound.MIDI.Core
+import Sound.MIDI.Types
 
 import qualified Sound.ALSA.Sequencer.Event as E
 
@@ -20,8 +26,10 @@ repeatM p m = do b <- p
                  iff b (return []) $ m <&> (:) <*> repeatM p m
 
 -- | MIDI input events
-midiIn :: MIDI [(Maybe Velocity, Note)]
-midiIn = ioMIDI $ io . (ioFetchConvertedEvents <$> sourceToInstr <*> seqT)
+midiIn :: MIDI env
+       => Eff env [(Maybe Velocity, Note)]
+midiIn = get
+     >>= lift . io . (ioFetchConvertedEvents <$> sourceToInstr <*> seqT)
     where
         ioFetchConvertedEvents instrs h = repeatM (E.inputPending h True <&> (== 0))
                                                   (E.input h)

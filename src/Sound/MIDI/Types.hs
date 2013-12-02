@@ -1,24 +1,24 @@
 {-# LANGUAGE NoImplicitPrelude
            , GeneralizedNewtypeDeriving
            #-}
-module Sound.MIDI.Monad.Types ( Note
-                              , MIDIAddress
-                              , Tick (..)
-                              , Pitch (..)
-                              , Instrument (..)
-                              , Velocity (..)
-                              , tickALSA
-                              , toALSA
-                              , fromALSA
-                              , middleC
-                              ) where
+module Sound.MIDI.Types ( Note
+                        , MIDIAddress
+                        , Tick (..)
+                        , Pitch (..)
+                        , Instrument (..)
+                        , Velocity (..)
+                        , tickALSA
+                        , toALSA
+                        , fromALSA
+                        , middleC
+                        ) where
 
 import Summit.Prelewd
 import Summit.Test
 
 import Data.Word
-import Text.Show (Show)
-import Text.Read (Read)
+import Text.Show (Show (..))
+import Text.Read
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Event as E
@@ -30,7 +30,7 @@ newtype Velocity = Velocity Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum
 
 data Instrument = Percussion
                 | Instrument Word8
-    deriving (Show, Read, Eq, Ord)
+    deriving (Eq, Ord, Show, Read)
 
 type Note = (Pitch, Instrument)
 type MIDIAddress = Addr.T
