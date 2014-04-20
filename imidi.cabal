@@ -9,7 +9,7 @@ Build-Type:          Simple
 Cabal-Version:       >= 1.9.2
 
 library
-    hs-source-dirs:    src/
+    hs-source-dirs:    .
     ghc-options:       -Wall -Werror -threaded -rtsopts=all
     exposed-modules:   Sound.MIDI
                        Sound.MIDI.Core
