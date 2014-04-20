@@ -78,7 +78,7 @@ runMIDI name outputs inputs f
       = S.withDefault S.Nonblock
       $ \h -> do
             C.setName h name
-            P.withSimple h "io"
+            P.withSimple h name
                 (P.caps [P.capRead, P.capSubsRead, P.capWrite])
                 (P.types [P.typeMidiGeneric, P.typeApplication])
                 $ \p -> Q.with h $ \q -> do
