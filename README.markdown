@@ -1,9 +1,4 @@
-# What is it?
-
 imidi is a MIDI I/O library for Haskell.
+It currently only works through ALSA, which means Linux.
 
-# Requirements
-
- * ghc
- * cabal
- * Summit (https://github.com/RobotGymnast/Summit)
+It requires [https://github.com/RobotGymnast/refcount](https://github.com/RobotGymnast/refcount).

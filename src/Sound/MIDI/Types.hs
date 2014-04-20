@@ -1,42 +1,48 @@
-{-# LANGUAGE NoImplicitPrelude
-           , GeneralizedNewtypeDeriving
-           #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Sound.MIDI.Types ( Note
                         , MIDIAddress
                         , Tick (..)
                         , Pitch (..)
                         , Instrument (..)
                         , Velocity (..)
+                        , Channel (..)
                         , tickALSA
                         , toALSA
                         , fromALSA
                         , middleC
                         ) where
 
-import Summit.Prelewd
-import Summit.Test
+import Prelude (Show, show)
+import BasicPrelude
 
-import Data.List (elemIndex)
-import Data.Word
-import Text.Show (Show (..))
 import Text.Read
+import Test.QuickCheck (Arbitrary (..))
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Event as E
 import qualified Sound.ALSA.Sequencer.Time as T
 
-newtype Tick = Tick Word32 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral)
-newtype Pitch = Pitch Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral)
-newtype Velocity = Velocity Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral)
+newtype Tick = Tick Word32 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral, Typeable, Hashable)
+newtype Pitch = Pitch Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral, Typeable, Hashable)
+newtype Velocity = Velocity Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral, Typeable, Hashable)
+newtype Channel = Channel Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral, Typeable, Hashable)
 
 data Instrument = Percussion
                 | Instrument Word8
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Typeable)
+
+instance Hashable Instrument where
+  hashWithSalt s i
+      = hashWithSalt s
+      $ case i of
+          Percussion -> Nothing
+          Instrument w -> Just w
 
 type Note = (Pitch, Instrument)
 type MIDIAddress = Addr.T
 
-instruments :: [Text]
+instruments :: [String]
 instruments =
   [ "AcousticGrandPiano"
   , "BrightAcousticPiano"
@@ -170,39 +176,34 @@ instruments =
 
 instance Show Instrument where
   show Percussion = "Percussion"
-  show (Instrument i) = instruments ! fromIntegral i
+  show (Instrument i) = instruments !! fromIntegral i
 
 instance Read Instrument where
-  readPrec = parens $ do
-              Ident s <- lexP
-              iff (s == "Percussion")
-                  (return Percussion)
-                  ( return . Instrument . fromIntegral
-                <$> elemIndex s instruments
-                <?> pfail
-                  )
+  readPrec = parens $ lexP >>= \(Ident s) ->
+              if s == "Percussion"
+              then return Percussion
+              else case elemIndex s instruments of
+                    Nothing -> pfail
+                    Just i -> return $ Instrument $ fromIntegral i
 
 instance Arbitrary Tick where arbitrary = Tick <$> arbitrary
 instance Arbitrary Pitch where arbitrary = Pitch <$> arbitrary
 instance Arbitrary Velocity where arbitrary = Velocity <$> arbitrary
 
 instance Arbitrary Instrument where
-    arbitrary = Instrument <$$> arbitrary <&> (<?> Percussion)
-
-instance ResultEq Tick
-instance ResultEq Pitch
-instance ResultEq Velocity
-instance ResultEq Instrument
+    arbitrary = maybe Percussion Instrument <$> arbitrary
 
 tickALSA :: Tick -> T.Stamp
 tickALSA (Tick t) = T.Tick t
 
 -- | Convert Note to Sound.ALSA.Sequence.Event.Note
-toALSA :: Pitch -> Velocity -> E.Channel -> E.Note
-toALSA (Pitch p) (Velocity v) c = E.simpleNote c (E.Pitch p) (E.Velocity v)
+toALSA :: Pitch -> Velocity -> Channel -> E.Note
+toALSA (Pitch p) (Velocity v) (Channel c) = E.simpleNote (E.Channel c)
+                                                         (E.Pitch p)
+                                                         (E.Velocity v)
 
 fromALSA :: E.Note -> (Maybe Velocity, Pitch)
-fromALSA = cast (> 0) . Velocity . E.unVelocity . E.noteVelocity
+fromALSA = mfilter (> 0) . return . Velocity . E.unVelocity . E.noteVelocity
        &&& Pitch . E.unPitch . E.noteNote
 
 middleC :: Pitch
