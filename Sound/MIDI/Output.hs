@@ -5,8 +5,6 @@ module Sound.MIDI.Output ( tempo
                          , toALSA
                          , startNote
                          , stopNote
-                         , playNote
-                         , playNotes
                          ) where
 
 import Prelude ()
@@ -16,7 +14,7 @@ import Control.Eff
 import Control.Eff.Lift
 import Control.Eff.State.Strict
 import Control.Lens (view, over)
-import Data.Foldable (Foldable, forM_, traverse_)
+import Data.Foldable (traverse_)
 import Data.HashSet as HashSet (toList, fromList, difference)
 import Data.HashMap.Strict as HashMap (lookup, insert)
 import Data.Refcount
@@ -45,31 +43,28 @@ tempo t = do
 flush :: MIDI env => Eff env ()
 flush = get >>= \cxt -> lift $ void $ E.drainOutput $ view seqT cxt
 
-event :: MIDI env
-    => Tick -> E.Data -> Eff env ()
-event start e = get >>= lift . (multiDestEvent <$> view qT <*> view seqT <*> view connsOut)
+event :: MIDI env => E.Data -> Eff env ()
+event e = get >>= lift . (multiDestEvent <$> view qT <*> view seqT <*> view connsOut)
   where
       multiDestEvent q sequ = traverse_ $ E.output sequ . singleDestEvent q
       singleDestEvent q out = ( E.forConnection out e )
                               { E.queue = q
-                              , E.time = T.consRel $ tickALSA start
+                              , E.time = T.consRel $ T.Tick 0
                               }
 
-noteEvent :: MIDI env
-        => Tick -> E.NoteEv -> Pitch -> Maybe Velocity -> Channel -> Eff env ()
-noteEvent t e p v = event t . E.NoteEv e . toALSA p (fromMaybe 0 v)
+noteEvent :: MIDI env => E.NoteEv -> Pitch -> Maybe Velocity -> Channel -> Eff env ()
+noteEvent e p v = event . E.NoteEv e . toALSA p (fromMaybe 0 v)
 
-startNote :: MIDI env
-        => Word8 -> Tick -> Velocity -> Note -> Eff env ()
-startNote drumChannel t v (p, instr) = do
+startNote :: MIDI env => Word8 -> Velocity -> Note -> Eff env ()
+startNote drumChannel v (p, instr) = do
       c <- instrumentChannel drumChannel instr <??> allocateChannel drumChannel instr
       _ <- modify $ over channels $ insertRef c
-      noteEvent t E.NoteOn p (Just v) c
+      noteEvent E.NoteOn p (Just v) c
 
-stopNote :: MIDI env => Word8 -> Tick -> Note -> Eff env ()
-stopNote drumChannel t (p, instr) = do
+stopNote :: MIDI env => Word8 -> Note -> Eff env ()
+stopNote drumChannel (p, instr) = do
       c <- fromMaybe (error "Note not started.") <$> instrumentChannel drumChannel instr
-      _ <- noteEvent t E.NoteOff p Nothing c
+      _ <- noteEvent E.NoteOff p Nothing c
       void $ releaseChannel c
   where
       releaseChannel c = modify $ over channels $ \m -> fromMaybe m $ deleteRef c m
@@ -78,14 +73,13 @@ instrumentChannel :: Member (State MIDIState) env => Word8 -> Instrument -> Eff 
 instrumentChannel drumChannel Percussion = pure $ pure $ Channel drumChannel
 instrumentChannel _ (Instrument i) = HashMap.lookup i . view instrChannels <$> get
 
-allocateChannel :: MIDI env
-              => Word8 -> Instrument -> Eff env Channel
+allocateChannel :: MIDI env => Word8 -> Instrument -> Eff env Channel
 allocateChannel drumChannel Percussion = pure $ Channel drumChannel
 allocateChannel drumChannel (Instrument i) = do
       Channel c <- unusedChannel <$> get
-      event 0 $ E.CtrlEv E.PgmChange
-              $ E.Ctrl (E.Channel c) (E.Parameter 0)
-              $ E.Value $ fromIntegral i
+      event $ E.CtrlEv E.PgmChange
+            $ E.Ctrl (E.Channel c) (E.Parameter 0)
+            $ E.Value $ fromIntegral i
       Channel c <$ modify (over instrChannels $ HashMap.insert i $ Channel c)
   where
       unusedChannel cxt = let
@@ -97,14 +91,3 @@ allocateChannel drumChannel (Instrument i) = do
               in case toList unusedChannels of
                   [] -> error "Out of channels"
                   c:_ -> c
-
--- | Play a melody and flush the buffer
-playNotes :: (MIDI env, Foldable t) => Word8 -> t (Tick, Tick, Velocity, Note) -> Eff env ()
-playNotes drumChannel notes = do
-    forM_ notes $ \(start, len, v, note) -> playNote drumChannel start len v note
-    flush
-
-playNote :: MIDI env => Word8 -> Tick -> Tick -> Velocity -> Note -> Eff env ()
-playNote drumChannel start dur v note = do
-    startNote drumChannel start v note
-    stopNote drumChannel (start + dur) note

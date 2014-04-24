@@ -7,7 +7,6 @@ module Sound.MIDI.Types ( Note
                         , Instrument (..)
                         , Velocity (..)
                         , Channel (..)
-                        , tickALSA
                         , toALSA
                         , fromALSA
                         , middleC
@@ -21,7 +20,6 @@ import Test.QuickCheck (Arbitrary (..))
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
 import qualified Sound.ALSA.Sequencer.Event as E
-import qualified Sound.ALSA.Sequencer.Time as T
 
 newtype Tick = Tick Word32 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral, Typeable, Hashable)
 newtype Pitch = Pitch Word8 deriving (Show, Read, Eq, Ord, Num, Real, Enum, Bounded, Integral, Typeable, Hashable)
@@ -192,9 +190,6 @@ instance Arbitrary Velocity where arbitrary = Velocity <$> arbitrary
 
 instance Arbitrary Instrument where
     arbitrary = maybe Percussion Instrument <$> arbitrary
-
-tickALSA :: Tick -> T.Stamp
-tickALSA (Tick t) = T.Tick t
 
 -- | Convert Note to Sound.ALSA.Sequence.Event.Note
 toALSA :: Pitch -> Velocity -> Channel -> E.Note
