@@ -40,8 +40,8 @@ import Sound.MIDI.Types
 traverseKeys :: (Eq a, Eq b, Hashable a, Hashable b, Functor m, Monad m) => (a -> m b) -> HashMap a z -> m (HashMap b z)
 traverseKeys f m = fromList <$> forM (toList m) (\(a, z) -> f a <&> (, z))
 
-class (Member (Lift IO) e, Member (State MIDIState) e) => MIDI e
-instance (Member (Lift IO) e, Member (State MIDIState) e) => MIDI e
+class (SetMember Lift (Lift IO) e, Member (State MIDIState) e) => MIDI e
+instance (SetMember Lift (Lift IO) e, Member (State MIDIState) e) => MIDI e
 
 instance Hashable P.T where
   hashWithSalt s (P.Cons p) = hashWithSalt s p
