@@ -8,15 +8,15 @@ module Sound.MIDI.Output ( tempo
                          ) where
 
 import Prelude ()
-import BasicPrelude hiding (lift, forM_)
+import BasicPrelude as Base hiding (lift)
 
 import Control.Eff
 import Control.Eff.Lift
 import Control.Eff.State.Strict
-import Control.Lens (view, over)
+import Control.Lens (view, over, set)
 import Data.Foldable (traverse_)
 import Data.HashSet as HashSet (toList, fromList, difference)
-import Data.HashMap.Strict as HashMap (lookup, insert)
+import Data.HashMap.Strict as HashMap
 import Data.Refcount
 
 import qualified Sound.ALSA.Sequencer.Event as E
@@ -63,11 +63,20 @@ startNote drumChannel v (p, instr) = do
 
 stopNote :: MIDI env => Word8 -> Note -> Eff env ()
 stopNote drumChannel (p, instr) = do
-      c <- fromMaybe (error "Note not started.") <$> instrumentChannel drumChannel instr
-      _ <- noteEvent E.NoteOff p Nothing c
-      void $ releaseChannel c
-  where
-      releaseChannel c = modify $ over channels $ \m -> fromMaybe m $ deleteRef c m
+      case instr of
+        Percussion ->
+            noteEvent E.NoteOff p Nothing $ Channel drumChannel
+        Instrument i -> do
+            c <- fromMaybe (error "Note not started.") . HashMap.lookup i . view instrChannels <$> get
+            noteEvent E.NoteOff p Nothing c
+            modify $ \s ->
+              case deleteRef c $ view channels s of
+                Nothing -> s
+                Just chnls ->
+                    let s' = set channels chnls s in
+                    if refcount c chnls == 0
+                    then over instrChannels (HashMap.delete i) s'
+                    else s'
 
 instrumentChannel :: Member (State MIDIState) env => Word8 -> Instrument -> Eff env (Maybe Channel)
 instrumentChannel drumChannel Percussion = pure $ pure $ Channel drumChannel
@@ -84,10 +93,10 @@ allocateChannel drumChannel (Instrument i) = do
   where
       unusedChannel cxt = let
               chnls = refcounted $ view channels cxt
-              unusedChannels = foldl' difference (fromList (Channel <$> [0..15]))
-                              [ fromList chnls
-                              , fromList [Channel drumChannel]
+              unusedChannels = Base.foldl' HashSet.difference (HashSet.fromList (Channel <$> [0..15]))
+                              [ HashSet.fromList chnls
+                              , HashSet.fromList [Channel drumChannel]
                               ]
-              in case toList unusedChannels of
+              in case HashSet.toList unusedChannels of
                   [] -> error "Out of channels"
                   c:_ -> c
