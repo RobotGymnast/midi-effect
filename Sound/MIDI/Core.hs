@@ -24,7 +24,7 @@ import Control.Eff
 import Control.Eff.Lift
 import Control.Eff.State.Strict
 import Control.Lens
-import Data.HashMap.Strict
+import Data.HashMap.Strict as HashMap
 import Data.Refcount
 
 import qualified Sound.ALSA.Sequencer.Address as Addr
@@ -38,7 +38,7 @@ import qualified Sound.ALSA.Sequencer as S
 import Sound.MIDI.Types
 
 traverseKeys :: (Eq a, Eq b, Hashable a, Hashable b, Functor m, Monad m) => (a -> m b) -> HashMap a z -> m (HashMap b z)
-traverseKeys f m = fromList <$> forM (toList m) (\(a, z) -> f a <&> (, z))
+traverseKeys f m = fromList <$> forM (HashMap.toList m) (\(a, z) -> f a <&> (, z))
 
 class (SetMember Lift (Lift IO) e, Member (State MIDIState) e) => MIDI e
 instance (SetMember Lift (Lift IO) e, Member (State MIDIState) e) => MIDI e

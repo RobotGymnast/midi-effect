@@ -18,6 +18,7 @@ library
                        Sound.MIDI.Types
 
     build-depends: 
+                    alsa-core == 0.5.*,
                     alsa-seq == 0.6.*,
                     base == 4.*,
                     basic-prelude == 0.3.8.*,
@@ -25,5 +26,6 @@ library
                     hashable == 1.2.1.*,
                     lens,
                     refcount == 0.0.*,
+                    refcount >= 0.0.1,
                     QuickCheck >= 2,
                     unordered-containers == 0.2.4.*
