@@ -55,17 +55,18 @@ event e = get >>= lift . (multiDestEvent <$> view qT <*> view seqT <*> view conn
 noteEvent :: MIDI env => E.NoteEv -> Pitch -> Maybe Velocity -> Channel -> Eff env ()
 noteEvent e p v = event . E.NoteEv e . toALSA p (fromMaybe 0 v)
 
-startNote :: MIDI env => Word8 -> Velocity -> Note -> Eff env ()
-startNote drumChannel v (p, instr) = do
-      c <- instrumentChannel drumChannel instr <??> allocateChannel drumChannel instr
+startNote :: MIDI env => Velocity -> Note -> Eff env ()
+startNote v (p, instr) = do
+      c <- instrumentChannel instr <??> allocateChannel instr
       _ <- modify $ over channels $ insertRef c
       noteEvent E.NoteOn p (Just v) c
 
-stopNote :: MIDI env => Word8 -> Note -> Eff env ()
-stopNote drumChannel (p, instr) = do
+stopNote :: MIDI env => Note -> Eff env ()
+stopNote (p, instr) = do
+      drumc <- view drumChannel <$> get
       case instr of
         Percussion ->
-            noteEvent E.NoteOff p Nothing $ Channel drumChannel
+            noteEvent E.NoteOff p Nothing drumc
         Instrument i -> do
             c <- fromMaybe (error "Note not started.") . HashMap.lookup i . view instrChannels <$> get
             noteEvent E.NoteOff p Nothing c
@@ -78,25 +79,28 @@ stopNote drumChannel (p, instr) = do
                     then over instrChannels (HashMap.delete i) s'
                     else s'
 
-instrumentChannel :: Member (State MIDIState) env => Word8 -> Instrument -> Eff env (Maybe Channel)
-instrumentChannel drumChannel Percussion = pure $ pure $ Channel drumChannel
-instrumentChannel _ (Instrument i) = HashMap.lookup i . view instrChannels <$> get
+instrumentChannel :: Member (State MIDIState) env => Instrument -> Eff env (Maybe Channel)
+instrumentChannel Percussion = Just . view drumChannel <$> get
+instrumentChannel (Instrument i) = HashMap.lookup i . view instrChannels <$> get
 
-allocateChannel :: MIDI env => Word8 -> Instrument -> Eff env Channel
-allocateChannel drumChannel Percussion = pure $ Channel drumChannel
-allocateChannel drumChannel (Instrument i) = do
-      Channel c <- unusedChannel <$> get
+allocateChannel :: MIDI env => Instrument -> Eff env Channel
+allocateChannel Percussion = view drumChannel <$> get
+allocateChannel (Instrument i) = do
+      Channel c <- unusedChannel
       event $ E.CtrlEv E.PgmChange
             $ E.Ctrl (E.Channel c) (E.Parameter 0)
             $ E.Value $ fromIntegral i
       Channel c <$ modify (over instrChannels $ HashMap.insert i $ Channel c)
   where
-      unusedChannel cxt = let
-              chnls = refcounted $ view channels cxt
-              unusedChannels = Base.foldl' HashSet.difference (HashSet.fromList (Channel <$> [0..15]))
-                              [ HashSet.fromList chnls
-                              , HashSet.fromList [Channel drumChannel]
-                              ]
-              in case HashSet.toList unusedChannels of
-                  [] -> error "Out of channels"
-                  c:_ -> c
+      unusedChannel = do
+          drumc <- view drumChannel <$> get
+          chnls <- refcounted . view channels <$> get
+          let unusedChannels
+                  = Base.foldl' HashSet.difference (HashSet.fromList (Channel <$> [0..15]))
+                  [ HashSet.fromList chnls
+                  , HashSet.fromList [drumc]
+                  ]
+          -- toList is produced lazily
+          case HashSet.toList unusedChannels of
+              [] -> error "Out of channels"
+              c:_ -> return c

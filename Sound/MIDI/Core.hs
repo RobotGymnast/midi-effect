@@ -14,6 +14,7 @@ module Sound.MIDI.Core ( MIDI
                        , instrChannels
                        , channels
                        , sourceToInstr
+                       , drumChannel
                        , runMIDI
                        ) where
 
@@ -61,6 +62,7 @@ data MIDIState = MIDIState
                , _instrChannels :: HashMap Word8 Channel          -- ^ What instrument's on what
                                                                   -- channel?
                , _channels      :: Refcount Channel               -- ^ What channels are in use?
+               , _drumChannel   :: Channel                        -- ^ Channel for percussion I/O
                , _sourceToInstr :: HashMap MIDIAddress Instrument -- ^ Determine instrument
                                                                   -- from input source
                }
@@ -72,9 +74,10 @@ $(makeLenses ''MIDIState)
 runMIDI :: String                         -- ^ Client name
         -> [String]                       -- ^ MIDI output destinations
         -> HashMap String Instrument      -- ^ MIDI input source to instrument mapping
+        -> Channel                        -- ^ Percussion channel
         -> (MIDIState -> IO ())
         -> IO ()
-runMIDI name outputs inputs f
+runMIDI name outputs inputs drumc f
       = S.withDefault S.Nonblock
       $ \h -> do
             C.setName h name
@@ -94,5 +97,6 @@ runMIDI name outputs inputs f
                             , _connsIn          = sources
                             , _instrChannels    = mempty
                             , _channels         = mempty
+                            , _drumChannel      = drumc
                             , _sourceToInstr    = sourcesToInstrs
                             }
