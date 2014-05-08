@@ -12,7 +12,7 @@ module Sound.MIDI.Types ( Note
                         , middleC
                         ) where
 
-import Prelude (Show, show)
+import Prelude (Show (..))
 import BasicPrelude
 
 import Text.Read
@@ -172,7 +172,7 @@ instruments =
   , "Gunshot"
   ]
 
-instance Show Instrument where
+instance Prelude.Show Instrument where
   show Percussion = "Percussion"
   show (Instrument i) = instruments !! fromIntegral i
 
