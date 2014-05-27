@@ -1,4 +1,4 @@
-Name:                imidi
+Name:                midi-effect
 Version:             0.10.0
 Description:         MIDI I/O
 Category:            Music
@@ -21,11 +21,10 @@ library
                     alsa-core == 0.5.*,
                     alsa-seq == 0.6.*,
                     base == 4.*,
-                    basic-prelude == 0.3.8.*,
-                    extensible-effects == 1.4.*,
-                    hashable == 1.2.1.*,
+                    basic-prelude == 0.3.*,
+                    extensible-effects == 1.*,
+                    hashable == 1.2.*,
                     lens,
-                    refcount == 0.0.*,
-                    refcount >= 0.0.1,
+                    refcount >= 0.0.1 && < 0.1,
                     QuickCheck >= 2,
-                    unordered-containers == 0.2.4.*
+                    unordered-containers == 0.2.*
